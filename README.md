@@ -2,6 +2,19 @@
 
 Boutique là ứng dụng bán hàng gồm cửa hàng dành cho khách, trang quản trị và API backend. MongoDB lưu sản phẩm, tài khoản, đơn hàng và hội thoại. Nodemailer gửi email xác nhận đơn; Cloudinary lưu ảnh sản phẩm upload từ Admin.
 
+## Sản phẩm online và tài khoản chấm bài
+
+Các thông tin dưới đây cần được điền và kiểm tra sau khi deploy, trước khi nộp bài.
+
+| Nội dung            | Thông tin                                    |
+| ------------------- | -------------------------------------------- |
+| Website khách hàng  | https://shoppingweb-dfar.onrender.com/       |
+| Trang Admin         | https://shoppingweb-dfar.onrender.com/admin/ |
+| Email Admin demo    | uyen005@gmail.com                            |
+| Mật khẩu Admin demo | thanuyen30                                   |
+
+Tài khoản Admin demo dành cho kiểm tra dashboard, quản lý sản phẩm và chat hỗ trợ trên dữ liệu bài tập. Đăng nhập bằng email và mật khẩu trong bảng trên.
+
 ## Chức năng
 
 - Khách hàng: xem và tìm kiếm sản phẩm, lọc danh mục, xem chi tiết và sản phẩm liên quan, quản lý giỏ hàng, đăng ký và đăng nhập.
