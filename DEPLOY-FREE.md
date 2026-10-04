@@ -1,6 +1,6 @@
 # Deploy miễn phí: Render + Atlas + Cloudinary + SendGrid trial
 
-Mã phục vụ Client `/`, Admin `/admin/`, API `/api`, Socket.IO `/socket.io` trên cùng một Web Service. Local vẫn có ba ứng dụng trên ba port. Chưa có dịch vụ online được tạo hoặc tài khoản cloud được cấu hình bởi agent.
+Ứng dụng phục vụ Client `/`, Admin `/admin/`, API `/api`, Socket.IO `/socket.io` trên cùng một Web Service. Local có ba ứng dụng trên ba port.
 
 Render Free và Atlas Free/M0 phù hợp cho demo. Cloudinary Free có quota. SendGrid là trial 60 ngày, tối đa 100 email/ngày, không phải miễn phí lâu dài. Không chọn paid plan hoặc nâng cấp nếu không muốn trả phí. Kiểm tra lại màn hình đăng ký và ngày hết trial của tài khoản trước khi đồng ý.
 
@@ -129,7 +129,7 @@ Tạo service để có URL. Nếu URL chưa biết khi nhập Environment, cậ
 
 Trong service: **Connect → Outbound**, copy toàn bộ IP ranges/CIDR. Thêm từng dải vào **Atlas → Network Access**, chờ áp dụng, rồi Render → Manual Deploy → Deploy latest commit. Đây là dải IP dùng chung của Render region, không phải IP riêng của bạn; database vẫn cần xác thực mật khẩu và chỉ có quyền trên `boutique`.
 
-`render.yaml` cũng đã cấu hình Free, không có disk và có các placeholder secret cho Blueprint. Hướng dẫn này dùng Web Service thủ công để bạn kiểm tra từng mục.
+Các thông số trên được nhập trực tiếp khi tạo Web Service; không cần cấu hình Blueprint.
 
 ## 7. Tạo Admin
 

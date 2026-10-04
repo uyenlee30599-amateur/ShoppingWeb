@@ -1,101 +1,147 @@
-# NodeJS Assignment 03 — Boutique
+# Boutique — NodeJS Assignment 03
 
-Đã triển khai website thương mại điện tử từ frontend và JSON sản phẩm trong folder. Gồm Server NodeJS/Express/MongoDB, Client React và Admin React. File đề gốc được giữ lại để tham khảo; bản JSON sản phẩm dùng để seed nằm tại `client/public/data/products.json`.
+Boutique là ứng dụng bán hàng gồm cửa hàng dành cho khách, trang quản trị và API backend. MongoDB lưu sản phẩm, tài khoản, đơn hàng và hội thoại. Nodemailer gửi email xác nhận đơn; Cloudinary lưu ảnh sản phẩm upload từ Admin.
 
-## Chạy nhanh trên máy
+## Chức năng
 
-Yêu cầu Node.js 22.12+ hoặc 24+, npm và mạng cho lần tải thư viện/MongoDB đầu tiên.
+- Khách hàng: xem và tìm kiếm sản phẩm, lọc danh mục, xem chi tiết và sản phẩm liên quan, quản lý giỏ hàng, đăng ký và đăng nhập.
+- Đơn hàng: đặt hàng, kiểm tra tồn kho, nhận email xác nhận, xem lịch sử và chi tiết đơn của tài khoản đang đăng nhập.
+- Quản trị: dashboard, tìm kiếm, thêm, sửa và xóa sản phẩm; upload 1–4 ảnh JPEG/PNG/WebP, tối đa 5 MB mỗi ảnh. Cập nhật giữ nguyên ảnh; xóa sản phẩm sử dụng soft delete để giữ lịch sử đơn.
+- Hỗ trợ: chat theo phiên giữa khách và nhân viên; gửi `/end` để kết thúc hội thoại.
+- Phân quyền: `customer` sử dụng cửa hàng, `consultant` sử dụng chat hỗ trợ trong Admin, `admin` sử dụng toàn bộ trang quản trị.
+
+Backend tính giá từ database và sử dụng MongoDB transaction để lưu đơn, trừ tồn kho. Mật khẩu được hash bằng bcrypt; đăng nhập sử dụng cookie session, các API thay đổi dữ liệu kiểm tra CSRF. Dashboard tổng hợp giá trị đơn đã đặt; ứng dụng chưa tích hợp cổng thanh toán trực tuyến.
+
+## Công nghệ và cấu trúc
+
+Frontend: React, Vite, React Router. Backend: Node.js, Express, Mongoose, Socket.IO, Nodemailer và Multer.
+
+```text
+client/          Cửa hàng React và dữ liệu sản phẩm mẫu
+admin/           Trang quản trị React
+server/src/      API, model, xác thực, chat, email và upload ảnh
+server/scripts/  Import sản phẩm, cấp quyền và chạy MongoDB local
+server/test/     Kiểm thử backend
+.env.example     Mẫu cấu hình môi trường
+DEPLOY-FREE.md   Hướng dẫn deploy Render, Atlas, Cloudinary và SendGrid
+```
+
+## Chạy với MongoDB Atlas
+
+Yêu cầu Node.js 24, npm và MongoDB hỗ trợ replica set để thực hiện transaction. MongoDB Atlas đáp ứng yêu cầu này.
+
+### 1. Cài dependencies
+
+Chạy tại thư mục gốc, nơi có `package.json`:
 
 ```bash
 npm ci
+```
+
+### 2. Cấu hình môi trường
+
+Nếu chưa có `.env`, sao chép `.env.example` thành `.env`. Nếu đã có, chỉnh file hiện tại và giữ các thông tin đang sử dụng.
+
+Cấu hình tối thiểu cho local:
+
+```dotenv
+MONGODB_URI="mongodb+srv://<DB_USER>:<ENCODED_PASSWORD>@<CLUSTER_HOST>/boutique?retryWrites=true&w=majority"
+SESSION_SECRET=<RANDOM_SECRET_AT_LEAST_32_CHARACTERS>
+NODE_ENV=development
+PORT=5000
+ALLOWED_ORIGINS=http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://127.0.0.1:3001
+IMAGE_STORAGE=local
+```
+
+Thay placeholder bằng thông tin của môi trường đang sử dụng. Database user cần quyền đọc/ghi trên `boutique`; thêm IP máy vào Atlas Network Access. Mật khẩu trong URI cần URL-encode nếu có ký tự đặc biệt. Tạo session secret bằng `openssl rand -hex 32`.
+
+`.env` chứa thông tin riêng và được loại khỏi Git. Không đặt secrets trong frontend hoặc biến `VITE_*`.
+
+### 3. Import dữ liệu và khởi chạy
+
+```bash
+npm run seed
+npm run dev
+```
+
+Seed thêm 8 sản phẩm từ `client/public/data/products.json` vào database trong `MONGODB_URI`, giữ nguyên sản phẩm đã tồn tại. Sản phẩm mới được khởi tạo tồn kho 20.
+
+| Ứng dụng             | Địa chỉ local                    |
+| -------------------- | -------------------------------- |
+| Client               | http://127.0.0.1:3000            |
+| Admin                | http://127.0.0.1:3001            |
+| Backend health check | http://127.0.0.1:5000/api/health |
+
+Health check trả `{"ok":true}` khi backend có kết nối MongoDB. Nhấn `Ctrl+C` để dừng và khởi động lại sau khi thay đổi `.env`.
+
+## Tài khoản Admin
+
+Đăng ký tài khoản tại Client, sau đó chạy tại thư mục gốc:
+
+```bash
+npm run user:role -- admin@example.com admin
+```
+
+Thay email mẫu bằng tài khoản đã đăng ký. Script cập nhật quyền trong database cấu hình bởi `.env`; không cần chạy `npm run dev` trước. Đăng nhập Admin bằng email và mật khẩu của tài khoản đó. Không có tài khoản hoặc mật khẩu Admin mặc định.
+
+Để cấp quyền hỗ trợ chat, dùng `consultant` thay `admin`. Khi cấp quyền cho tài khoản online, URI local phải trỏ đến cùng cluster và database mà backend online sử dụng.
+
+## Email và ảnh sản phẩm
+
+Để gửi email qua SendGrid, thêm vào `.env`:
+
+```dotenv
+SMTP_HOST=smtp.sendgrid.net
+SMTP_PORT=2525
+SMTP_USER=apikey
+SMTP_PASS=<SENDGRID_API_KEY>
+MAIL_FROM=<VERIFIED_SENDER_EMAIL>
+```
+
+API key cần quyền Mail Send và email gửi phải được xác minh. Thư được gửi tới email khách nhập tại Checkout. Gửi thất bại vẫn lưu đơn và ghi nhận trạng thái email. Trong development, nếu chưa cấu hình `SMTP_HOST`, email được lưu dạng HTML tại `server/private/mail/` thay vì gửi thật. SendGrid trial có thời hạn; kiểm tra ngày hết hạn khi nộp bài.
+
+Để lưu ảnh trên Cloudinary, đổi `IMAGE_STORAGE` và điền thông tin của cùng product environment:
+
+```dotenv
+IMAGE_STORAGE=cloudinary
+CLOUDINARY_CLOUD_NAME=<CLOUD_NAME>
+CLOUDINARY_API_KEY=<API_KEY>
+CLOUDINARY_API_SECRET=<API_SECRET>
+```
+
+Admin upload ảnh qua form tạo sản phẩm; backend gửi ảnh lên Cloudinary và lưu URL HTTPS vào MongoDB. Không cần unsigned upload preset. URL Firebase HTTPS trong dữ liệu mẫu tiếp tục được dùng nếu còn truy cập được. Ảnh local `/uploads/...` không tự chuyển lên Cloudinary.
+
+## Chạy với MongoDB local
+
+Để chạy môi trường riêng trên máy thay vì Atlas:
+
+```bash
 npm run dev:local
 ```
 
-Lệnh này khởi động MongoDB replica set chỉ trên loopback, import sản phẩm nếu chưa có và chạy đủ ba ứng dụng:
+Script khởi động MongoDB replica set, import sản phẩm và chạy cả ba ứng dụng. Lần đầu cần mạng để tải MongoDB binary. Dữ liệu giữ tại `server/private/local-mongo/`; email luôn dùng preview. Không chạy đồng thời với `npm run dev`. Chế độ này không dùng Atlas hoặc gửi email SMTP thật.
 
-- Client: http://127.0.0.1:3000
-- Admin: http://127.0.0.1:3001
-- Server: http://127.0.0.1:5000/api/health
-
-Database local lưu tại `server/private/local-mongo`; secret phiên tại `server/private/local-secret`; email thử tại `server/private/mail`. Các file này bị loại khỏi Git. Nhấn Ctrl+C để dừng cả ba ứng dụng; dữ liệu vẫn giữ lại. Không chạy hai phiên `dev:local` cùng lúc. Không cần tài khoản cloud, Docker hay gửi mật khẩu vào chat. `dev:local` chỉ dùng cho phát triển.
-
-Đăng ký tài khoản tại Client, sau đó mở terminal khác trong folder dự án để cấp quyền cho tài khoản local của bạn:
-
-```bash
-npm run user:role -- email-cua-ban@example.com admin
-# Hoặc: npm run user:role -- email-tu-van@example.com consultant
-```
-
-Đăng nhập lại tại Admin. Không có tài khoản admin/mật khẩu mặc định. Đăng ký qua API luôn tạo `customer`, không cho người đăng ký tự nâng quyền. CLI cấp quyền chỉ dành cho người quản lý database; không dùng với database thật nếu chưa xác nhận người nhận quyền.
-
-## Dùng MongoDB riêng hoặc Atlas
-
-1. Sao chép `.env.example` thành `.env` ở thư mục gốc.
-2. Đặt `MONGODB_URI` và secret ngẫu nhiên, tối thiểu 32 ký tự. MongoDB phải hỗ trợ replica set vì đặt hàng sử dụng transaction. Atlas đáp ứng điều kiện này.
-3. Có thể dùng `docker compose up -d --wait` nếu đã có Docker; cấu hình đi kèm chỉ mở MongoDB trên 127.0.0.1.
-4. Chạy `npm run seed` rồi `npm run dev`.
-
-`seed` dùng dữ liệu `client/public/data/products.json`, giữ nguyên ID và chỉ thêm sản phẩm chưa tồn tại; không xóa database. `count` ban đầu là 20 vì dữ liệu đề không có tồn kho. Giỏ hàng frontend chỉ lưu sản phẩm/số lượng trên localStorage; tài khoản và mật khẩu được xử lý ở backend. Dữ liệu tài khoản mô phỏng cũ trong localStorage được loại bỏ khi chạy Client mới.
-
-## Phân tích cách làm và đối chiếu đề
-
-| Yêu cầu                             | Cách triển khai                                                                                                                            | Vị trí chính                                              |
-| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------- |
-| 1. Ba ứng dụng, port 5000/3000/3001 | Express và hai Vite React app                                                                                                              | `server`, `client`, `admin`                               |
-| 2. Model MongoDB                    | User, Product, Order, Session; tham chiếu User/Product trong đơn và phiên chat; phiên đăng nhập lưu MongoDB riêng                          | `server/src/models.js`                                    |
-| 3. Xác thực                         | Bcrypt hash, cookie HttpOnly, session MongoDB, CSRF, giới hạn đăng nhập                                                                    | `server/src/app.js`, `client/src/components/AuthForm.jsx` |
-| 4. Trang chủ                        | Client gọi GET /api/products                                                                                                               | `client/src/hooks/useProducts.js`                         |
-| 5. Chi tiết và sản phẩm liên quan   | GET /api/products/:id trả product và related                                                                                               | `client/src/pages/DetailPage.jsx`                         |
-| 6. Đặt hàng                         | Kiểm tra người dùng, validation, giá từ DB, snapshot sản phẩm, trạng thái, thời gian; transaction trừ kho và lưu đơn; khóa chống gửi trùng | `server/src/app.js`, `client/src/pages/CheckoutPage.jsx`  |
-| 7. Email                            | Nodemailer gửi tên, sản phẩm, số lượng, giá và thời gian; lưu trạng thái gửi                                                               | `server/src/mail.js`                                      |
-| 8. Lịch sử và chi tiết đơn          | Chỉ chủ đơn được xem; route /orders và /orders/:id                                                                                         | `client/src/pages/OrdersPage.jsx`                         |
-| 9. Phân quyền                       | customer chỉ Client; consultant chỉ livechat ở Admin; admin toàn bộ; kiểm tra quyền ở API                                                  | `server/src/app.js`, `admin/src/App.jsx`                  |
-| 10. Danh sách và tìm kiếm sản phẩm  | Bảng Admin có tìm theo tên                                                                                                                 | `admin/src/App.jsx`                                       |
-| 11. Deploy                          | Có cấu hình Render, build production và hướng dẫn bên dưới; **chưa đưa lên online**                                                        | `render.yaml`                                             |
-| 12. Livechat                        | Socket.IO, phiên lưu MongoDB, roomID localStorage, kiểm tra chủ phòng, tư vấn viên trả lời, /end kết thúc                                  | `server/src/chat.js`, hai UI chat                         |
-| 13. Dashboard                       | Sidebar, số user, giao dịch, tổng giá trị đơn, doanh thu bình quân tháng, đơn gần đây                                                      | `admin/src/App.jsx`                                       |
-| 14. Thêm sản phẩm và upload         | Multipart, 1–4 ảnh JPEG/PNG/WebP, tối đa 5 MB/ảnh, tên ngẫu nhiên và kiểm tra chữ ký file                                                  | `server/src/app.js`                                       |
-| 15. Cập nhật và xóa                 | PUT dùng findOneAndUpdate, giữ ảnh; DELETE sau xác nhận, đánh dấu deleted để giữ lịch sử                                                   | `server/src/app.js`, `admin/src/App.jsx`                  |
-| 16. Tồn kho                         | count, báo hết hàng, kiểm tra số lượng tại server, trừ kho trong transaction                                                               | `server/src/models.js`, `server/src/app.js`               |
-
-Tổng doanh thu trên Dashboard là tổng giá trị các đơn đã đặt, không phải số tiền thanh toán thực nhận. Bình quân tháng tính theo số tháng lịch từ đơn đầu tiên đến hiện tại. Thanh toán hiện là đặt hàng, chưa tích hợp cổng thanh toán; đề không yêu cầu tích hợp cổng thanh toán. Trạng thái đơn ban đầu là `pending`. Mã nguồn hiện không có màn hình đổi trạng thái đơn.
-
-## Email thật
-
-`dev:local` luôn xem thử email; khi dùng `npm run dev`, không cấu hình SMTP thì hệ thống lưu email HTML trong `server/private/mail/<orderId>.html` và `emailStatus=preview`; đây chưa phải email đã gửi. Có thể mở file bằng trình duyệt để kiểm tra nội dung.
-
-Để gửi thật, bạn tự nhập `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM` vào `.env` hoặc secret của hosting. Nếu dùng Gmail, dùng App Password cho tài khoản dự án, không dùng mật khẩu đăng nhập Gmail thông thường. Không commit secret, không gửi secret qua chat. Production không tạo email preview; khi gửi thất bại đơn vẫn được lưu, có `emailStatus=failed` và Client thông báo. Chưa có hàng đợi tự động gửi lại email sau lỗi SMTP hoặc sau khi server bị dừng đột ngột.
-
-## Kiểm thử
+## Kiểm tra và build
 
 ```bash
 npm run lint
 npm test
-npm run build
+npm run build:hosted
 ```
 
-`npm test` khởi động database replica set tạm riêng, không đọc `.env`, không kết nối database thật và tự dọn dữ liệu test. Lần đầu sẽ tải MongoDB binary chính thức. Sáu nhóm integration gồm xác thực/CSRF/phân quyền, đơn hàng/giá/quyền sở hữu/rollback, đặt đồng thời/chống trùng, upload/cập nhật/xóa, livechat/khóa quyền phòng/logout và phục vụ hai frontend trong production. Hai nhóm Cloudinary bổ sung kiểm tra chữ ký upload/dọn ảnh và lỗi cấu hình/dịch vụ bằng mock; không upload ảnh lên tài khoản thật trong test. `npm test` tự build hai frontend trước khi chạy. Email dùng preview, không gửi thật trong test.
+Tests dùng database tạm riêng, kiểm tra xác thực, phân quyền, đơn hàng, tồn kho, upload, chat và phục vụ frontend production. Tests không gửi email hoặc upload lên tài khoản Cloudinary thật. `npm test` tự build frontend trước khi chạy.
 
-Demo để đối chiếu đề:
+## Deploy trên Render
 
-1. Đăng ký và đăng nhập; reload kiểm tra phiên; đăng xuất kiểm tra API yêu cầu đăng nhập.
-2. Home → Shop → Detail, thêm vào giỏ → Checkout → Orders, mở chi tiết và file email preview.
-3. Tạo thêm tài khoản và kiểm tra không xem được đơn của người khác.
-4. Cấp quyền Admin bằng CLI; tìm sản phẩm, thêm ảnh, cập nhật mô tả/tồn kho, xóa sau xác nhận.
-5. Đặt `count=0`, kiểm tra Client báo hết hàng và backend từ chối đặt hàng.
-6. Dùng hai browser/profile riêng để đăng nhập khách và tư vấn viên (cookie trên localhost dùng chung giữa các port), thử nhắn hai chiều và `/end`.
-7. Sau khi cấu hình SMTP/deploy, kiểm tra lại bằng email thử và URL HTTPS thật.
+Tạo một Web Service từ repository, chọn Node và gói Free:
 
-## Deploy Render Free
+- Branch: `main`; Root Directory để trống.
+- Build Command: `npm ci --include=dev && npm run build:hosted`.
+- Start Command: `npm start`.
+- Health Check Path: `/api/health`.
+- Environment: `NODE_ENV=production`, `NODE_VERSION=24`, URI Atlas, session secret riêng, các biến Cloudinary và SendGrid.
+- `ALLOWED_ORIGINS`: origin HTTPS thật của service, không có `/` cuối.
 
-Cấu hình mặc định phục vụ cả hai frontend và backend trên cùng một origin HTTPS: Client ở `/`, Admin ở `/admin/`, API ở `/api`, Socket.IO ở `/socket.io`. Local vẫn dùng đủ ba port theo đề. Cách cùng origin giúp cookie hoạt động ổn định và không phụ thuộc cookie bên thứ ba.
+Thêm toàn bộ Outbound IP ranges của service Render vào Atlas Network Access. Render tự cấp `PORT`. Dùng Cloudinary để giữ ảnh qua các lần deploy vì filesystem Render Free không bền vững.
 
-Trên Render, dùng repository của bài và các thông số:
-
-- Build: `npm ci --include=dev && npm run build:hosted`
-- Start: `npm start`
-- Health check: `/api/health`
-- Biến môi trường: `NODE_ENV=production`, `MONGODB_URI` Atlas, `SESSION_SECRET` ngẫu nhiên, `ALLOWED_ORIGINS=https://ten-dich-vu.onrender.com` và các biến SMTP.
-- Phương án mặc định hiện tại: **Render Free + Atlas Free + Cloudinary Free + SendGrid trial**, không dùng disk. Đặt `IMAGE_STORAGE=cloudinary` và ba biến `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` ở backend. `render.yaml` đã chọn `plan: free`, SMTP SendGrid cổng 2525. Xem [hướng dẫn từng bước](DEPLOY-FREE.md). Local mặc định vẫn lưu ảnh trong `server/public/uploads`.
-- Sau khi có URL thật, thay `ALLOWED_ORIGINS` bằng origin đó, không thêm dấu `/` cuối.
-- Import dữ liệu bằng `npm run seed` với URI production do bạn cấu hình riêng. Đăng ký tài khoản quản trị qua Client, cấp quyền bằng CLI đã trỏ đúng database production và đăng nhập Admin.
+Khi online, Client ở `/`, Admin ở `/admin/`, API ở `/api/`. Tài khoản và sản phẩm được dùng chung với local nếu cùng database Atlas. Xem hướng dẫn tại [DEPLOY-FREE.md](DEPLOY-FREE.md).
